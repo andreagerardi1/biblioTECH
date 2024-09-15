@@ -39,14 +39,14 @@ if (isset($_POST['logout'])) {
 
 <div class="d-flex">
     <!-- Menù Laterale -->
-    <div class="d-flex flex-column flex-shrink-0 p-3 bg-light" style="width: 250px; height: 100vh;">
+    <div class="d-flex flex-column flex-shrink-0 p-3 bg-primary text-white" style="width: 250px; height: 100vh;">
         <h4 class="mb-4">Biblioteca - Dashboard</h4>
         <div class="d-grid gap-2">
-            <a href="sedi.php" class="btn btn-outline-dark" role="button">Sedi</a>
-            <a href="lettori.php" class="btn btn-outline-dark" role="button">Lettori</a>
-            <a href="autori.php" class="btn btn-outline-dark" role="button">Autori</a>
-            <a href="libri.php" class="btn btn-outline-dark" role="button">Libri</a>
-            <a href="copie.php" class="btn btn-outline-dark" role="button">Copie</a>
+            <a href="sedi.php" class="btn btn-outline-light" role="button">Sedi</a>
+            <a href="lettori.php" class="btn btn-outline-light" role="button">Lettori</a>
+            <a href="autori.php" class="btn btn-outline-light" role="button">Autori</a>
+            <a href="libri.php" class="btn btn-outline-light" role="button">Libri</a>
+            <a href="copie.php" class="btn btn-outline-light" role="button">Copie</a>
         </div>
         <hr class="mt-4">
         <div class="mt-auto">

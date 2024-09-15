@@ -37,12 +37,12 @@ $previous_page = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'h
 ?>
 
 <!doctype html>
-<html lang="en">
+<html lang="it">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Area Personale</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   </head>
   <body>
@@ -51,6 +51,9 @@ $previous_page = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'h
         <div>
           <!-- Pulsante Indietro -->
           <a href="<?php echo htmlspecialchars($previous_page); ?>" class="btn btn-primary me-2">Indietro</a>
+          
+          <!-- Pulsante Cambia Password -->
+          <a href="cambia_password.php" class="btn btn-warning me-2">Cambia Password</a>
         </div>
         <h2>Area Personale di <?php echo htmlspecialchars($lettore['nome'] . ' ' . $lettore['cognome']); ?></h2>
         <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
