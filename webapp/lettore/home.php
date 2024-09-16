@@ -1,22 +1,18 @@
 <?php
 session_start();
 
-// Verifica se l'utente è loggato come lettore
 if (!isset($_SESSION["loggedin"]) || $_SESSION["tipo"] !== "lettore") {
     header("Location: ../index.php");
     exit;
 }
 
-// Include il file di connessione al database
-include('../connection.php');
+include '../connection.php';
 
-// Variabili per memorizzare i messaggi
-$success_message = "";
-$error_message = "";
+$success_message = $error_message = "";
 
-// Esegui la query per ottenere tutti i libri disponibili
 $query = "SELECT * FROM biblioteca_ag.libro";
-$result = pg_query($db, $query);
+$result = pg_prepare($db, "home_lettore",$query);
+$result = pg_execute($db, "home_lettore",array());
 ?>
 
 <!doctype html>
@@ -35,14 +31,12 @@ $result = pg_query($db, $query);
         <a href="area_personale.php" class="btn btn-secondary"><i class="bi bi-person-circle p-1"></i> Area Personale</a>
       </div>
 
-      <!-- Messaggio di successo o errore -->
       <?php if (!empty($success_message)): ?>
         <div class="alert alert-success"><?php echo $success_message; ?></div>
       <?php elseif (!empty($error_message)): ?>
         <div class="alert alert-danger"><?php echo $error_message; ?></div>
       <?php endif; ?>
 
-      <!-- Tabella dei libri -->
       <table class="table table-striped">
         <thead>
           <tr>
@@ -72,6 +66,5 @@ $result = pg_query($db, $query);
 </html>
 
 <?php
-// Chiudi la connessione al database
 pg_close($db);
 ?>

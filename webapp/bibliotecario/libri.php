@@ -1,18 +1,16 @@
 <?php
 session_start();
 
-// Verifica se l'utente è loggato come bibliotecario
 if (!isset($_SESSION["loggedin"]) || $_SESSION["tipo"] !== "bibliotecario") {
     header("Location: ../index.php");
     exit;
 }
 
-// Include il file di connessione al database
-include('../connection.php');
+include '../connection.php';
 
-// Query per ottenere tutti i libri
 $query_libri = "SELECT isbn, titolo, casa_ed FROM biblioteca_ag.libro";
-$result_libri = pg_query($db, $query_libri);
+$result_libri = pg_prepare($db,"catalogo_libri", $query_libri);
+$result_libri = pg_execute($db,"catalogo_libri", array());
 
 ?>
 
@@ -21,13 +19,12 @@ $result_libri = pg_query($db, $query_libri);
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Libri - Biblioteca</title>
+    <title>Libri</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
 
 <div class="container mt-5">
-    <!-- Header con Pulsanti per Tornare alla Home e Aggiungere un Libro -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="m-0">Elenco Libri</h2>
         <div>
@@ -36,7 +33,6 @@ $result_libri = pg_query($db, $query_libri);
         </div>
     </div>
 
-    <!-- Tabella con Elenco dei Libri -->
     <table class="table table-striped">
         <thead>
             <tr>
@@ -46,6 +42,7 @@ $result_libri = pg_query($db, $query_libri);
                 <th>Azioni</th>
             </tr>
         </thead>
+
         <tbody>
             <?php if (pg_num_rows($result_libri) > 0): ?>
                 <?php while ($libro = pg_fetch_assoc($result_libri)): ?>
@@ -70,6 +67,5 @@ $result_libri = pg_query($db, $query_libri);
 </html>
 
 <?php
-// Chiudi la connessione al database
 pg_close($db);
 ?>

@@ -1,66 +1,57 @@
 <?php
 session_start();
 
-// Verifica se l'utente è loggato come lettore
 if (!isset($_SESSION["loggedin"]) || $_SESSION["tipo"] !== "lettore") {
     header("Location: ../index.php");
     exit;
 }
 
-// Include il file di connessione al database
-include('../connection.php');
+include '../connection.php';
 
-// Variabili per memorizzare i messaggi
-$success_message = "";
-$error_message = "";
+$success_message = $error_message = "";
 
-// Ottieni l'ISBN del libro dalla query string
 $book_isbn = isset($_GET['book_id']) ? $_GET['book_id'] : '';
 
-// Esegui una query per ottenere il libro
 $query = "SELECT * FROM biblioteca_ag.libro WHERE isbn = $1";
-$result = pg_query_params($db, $query, array($book_isbn));
+$result = pg_prepare($db, "info_libro",$query);
+$result = pg_execute($db, "info_libro", array($book_isbn));
 $book = pg_fetch_assoc($result);
 
-// Esegui una query per ottenere gli autori del libro
 $query_autori = "SELECT a.nome, a.cognome 
                  FROM biblioteca_ag.autore AS a
                  JOIN biblioteca_ag.scrive AS s ON a.id = s.autore_id
                  WHERE s.libro_isbn = $1";
-$result_autori = pg_query_params($db, $query_autori, array($book_isbn));
+$result_autori = pg_prepare($db, "autori_da_libro",$query_autori);
+$result_autori = pg_execute($db, "autori_da_libro", array($book_isbn));
 
-// Costruisci una stringa con i nomi degli autori separati da virgole
 $autori = [];
 while ($row_autore = pg_fetch_assoc($result_autori)) {
     $autori[] = htmlspecialchars($row_autore['nome']) . " " . htmlspecialchars($row_autore['cognome']);
 }
 $autori_string = implode(", ", $autori);
 
-// Esegui una query per ottenere tutte le sedi e le loro disponibilità per il libro
 $query_sedi = "SELECT sede.cod, sede.città, sede.indirizzo, 
                COUNT(copia.codice) AS disponibilità
                FROM biblioteca_ag.sede AS sede
                LEFT JOIN biblioteca_ag.copia AS copia ON sede.cod = copia.sede_cod 
                AND copia.libro_isbn = $1 AND copia.stato = 'disponibile'
                GROUP BY sede.cod, sede.città, sede.indirizzo";
-$result_sedi = pg_query_params($db, $query_sedi, array($book_isbn));
+$result_sedi = pg_prepare($db, "sedi_per_libro",$query_sedi);
+$result_sedi = pg_execute($db, "sedi_per_libro", array($book_isbn));
 
-// Controlla se il form è stato inviato
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit'])) {
-    $sede = isset($_POST['sede']) && $_POST['sede'] !== '' ? $_POST['sede'] : null; // Seleziona null se la sede non è selezionata
+    $sede = isset($_POST['sede']) && $_POST['sede'] !== '' ? $_POST['sede'] : null; // se la sede non è selezionata il default è null
 
-    // Se la sede è null, dobbiamo usare una query diversa che omette il terzo parametro
     if ($sede !== null) {
-        // Chiama la funzione per richiedere il prestito con una sede specifica
         $query_prestito = "CALL biblioteca_ag.richiedi_prestito_isbn($1, $2, $3)";
         $params = array($book_isbn, $_SESSION["cf"], $sede);
     } else {
-        // Chiama la funzione per richiedere il prestito senza una sede specifica
         $query_prestito = "CALL biblioteca_ag.richiedi_prestito_isbn($1, $2, NULL)";
         $params = array($book_isbn, $_SESSION["cf"]);
     }
 
-    $result_prestito = pg_query_params($db, $query_prestito, $params);
+    $result_prestito = pg_prepare($db, "query_prestito",$query_prestito);
+    $result_prestito = pg_execute($db, "query_prestito", $params);
 
     if ($result_prestito) {
         $success_message = "Prestito effettuato con successo!";
@@ -82,14 +73,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit'])) {
     <div class="container mt-5">
       <h2 class="mb-4 text-center">Prenota il Libro</h2>
 
-      <!-- Messaggio di successo o errore -->
       <?php if (!empty($success_message)): ?>
         <div class="alert alert-success mb-4"><?php echo $success_message; ?></div>
       <?php elseif (!empty($error_message)): ?>
         <div class="alert alert-danger mb-4"><?php echo $error_message; ?></div>
       <?php endif; ?>
 
-      <!-- Card per i dettagli del libro -->
       <?php if ($book): ?>
         <div class="card mb-4">
           <div class="card-header">
@@ -103,7 +92,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit'])) {
           </div>
         </div>
 
-        <!-- Card per il form di prenotazione -->
         <div class="card">
           <div class="card-header">
             <h4>Seleziona la Sede della Biblioteca</h4>
@@ -123,7 +111,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit'])) {
                 </select>
               </div>
 
-              <!-- Pulsanti per prenotare e tornare alla home -->
               <div class="d-flex justify-content-between">
                 <button type="submit" name="submit" class="btn btn-primary">Prenota</button>
                 <a href="home.php" class="btn btn-secondary">Torna alla Home</a>
@@ -141,6 +128,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit'])) {
 </html>
 
 <?php
-// Chiudi la connessione al database
 pg_close($db);
 ?>

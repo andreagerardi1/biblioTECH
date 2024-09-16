@@ -1,39 +1,34 @@
 <?php
 session_start();
 
-// Verifica se l'utente è loggato come lettore
 if (!isset($_SESSION["loggedin"]) || $_SESSION["tipo"] !== "lettore") {
     header("Location: ../index.php");
     exit;
 }
 
-// Include il file di connessione al database
-include('../connection.php');
+include '../connection.php';
 
-// Ottieni i dati del lettore
 $cf_lettore = $_SESSION["cf"];
 $query_lettore = "SELECT * FROM biblioteca_ag.lettore WHERE cf = $1";
-$result_lettore = pg_query_params($db, $query_lettore, array($cf_lettore));
+$result_lettore = pg_prepare($db, "dati_lettore",$query_lettore);
+$result_lettore = pg_execute($db, "dati_lettore", array($cf_lettore));
 $lettore = pg_fetch_assoc($result_lettore);
 
-// Ottieni i prestiti in corso
 $query_prestiti_attivi = "SELECT * FROM biblioteca_ag.prestito WHERE lettore_cf = $1 AND restituzione IS NULL";
-$result_prestiti_attivi = pg_query_params($db, $query_prestiti_attivi, array($cf_lettore));
+$result_prestiti_attivi = pg_prepare($db, "prestiti_attivi_lettore",$query_prestiti_attivi);
+$result_prestiti_attivi = pg_execute($db, "prestiti_attivi_lettore", array($cf_lettore));
 
-// Ottieni i prestiti terminati
+
 $query_prestiti_terminati = "SELECT * FROM biblioteca_ag.prestito WHERE lettore_cf = $1 AND restituzione IS NOT NULL";
-$result_prestiti_terminati = pg_query_params($db, $query_prestiti_terminati, array($cf_lettore));
+$result_prestiti_terminati = pg_prepare($db, "prestiti_terminati_lettore",$query_prestiti_terminati);
+$result_prestiti_terminati = pg_execute($db, "prestiti_terminati_lettore", array($cf_lettore));
 
-// Logout
 if (isset($_POST['logout'])) {
     session_unset();
     session_destroy();
     header("Location: ../index.php");
     exit;
 }
-
-// Riferimento alla pagina precedente
-$previous_page = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'home.php'; // Default alla home se non disponibile
 ?>
 
 <!doctype html>
@@ -43,25 +38,23 @@ $previous_page = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'h
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Area Personale</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   </head>
+
   <body>
     <div class="container mt-5">
       <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <!-- Pulsante Indietro -->
-          <a href="<?php echo htmlspecialchars($previous_page); ?>" class="btn btn-primary me-2">Indietro</a>
-          
-          <!-- Pulsante Cambia Password -->
+          <a href="home.php" class="btn btn-primary me-2">Indietro</a>
           <a href="cambia_password.php" class="btn btn-warning me-2">Cambia Password</a>
         </div>
+
         <h2>Area Personale di <?php echo htmlspecialchars($lettore['nome'] . ' ' . $lettore['cognome']); ?></h2>
+        
         <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
           <button type="submit" name="logout" class="btn btn-danger">Logout</button>
         </form>
       </div>
 
-      <!-- Dettagli del lettore -->
       <div class="mb-4">
         <h4>Dettagli del Lettore</h4>
         <ul class="list-group">
@@ -73,7 +66,6 @@ $previous_page = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'h
         </ul>
       </div>
 
-      <!-- Prestiti in corso e terminati -->
       <div class="row">
         <div class="col-md-6">
           <h4>Prestiti in Corso</h4>
@@ -130,6 +122,5 @@ $previous_page = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'h
 </html>
 
 <?php
-// Chiudi la connessione al database
 pg_close($db);
 ?>

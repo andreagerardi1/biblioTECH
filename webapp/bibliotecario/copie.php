@@ -1,18 +1,16 @@
 <?php
 session_start();
 
-// Verifica se l'utente è loggato come bibliotecario
 if (!isset($_SESSION["loggedin"]) || $_SESSION["tipo"] !== "bibliotecario") {
     header("Location: ../index.php");
     exit;
 }
 
-// Include il file di connessione al database
-include('../connection.php');
+include '../connection.php';
 
-// Query per ottenere tutte le copie
 $query_copie = "SELECT codice, libro_isbn, stato, sede_cod FROM biblioteca_ag.copia";
-$result_copie = pg_query($db, $query_copie);
+$result_copie = pg_prepare($db, "info_copia", $query_copie);
+$result_copie = pg_execute($db, "info_copia", array());
 ?>
 
 <!doctype html>
@@ -20,13 +18,12 @@ $result_copie = pg_query($db, $query_copie);
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Copie - Biblioteca</title>
+    <title>Copie</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
 
 <div class="container mt-5">
-    <!-- Header con Pulsanti per Tornare alla Home e Aggiungere una Copia -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="m-0">Elenco Copie</h2>
         <div>
@@ -35,7 +32,6 @@ $result_copie = pg_query($db, $query_copie);
         </div>
     </div>
 
-    <!-- Tabella con Elenco delle Copie -->
     <table class="table table-striped">
         <thead>
             <tr>
@@ -46,6 +42,7 @@ $result_copie = pg_query($db, $query_copie);
                 <th>Azioni</th>
             </tr>
         </thead>
+
         <tbody>
             <?php if (pg_num_rows($result_copie) > 0): ?>
                 <?php while ($copia = pg_fetch_assoc($result_copie)): ?>
@@ -68,11 +65,9 @@ $result_copie = pg_query($db, $query_copie);
     </table>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 
 <?php
-// Chiudi la connessione al database
 pg_close($db);
 ?>
