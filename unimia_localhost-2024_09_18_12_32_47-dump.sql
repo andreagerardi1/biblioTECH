@@ -140,6 +140,28 @@ CREATE FUNCTION biblioteca_ag.controlla_disponibilita_funzione() RETURNS trigger
 ALTER FUNCTION biblioteca_ag.controlla_disponibilita_funzione() OWNER TO andrea;
 
 --
+-- Name: prolunga_prestito(bigint); Type: PROCEDURE; Schema: biblioteca_ag; Owner: andrea
+--
+
+CREATE PROCEDURE biblioteca_ag.prolunga_prestito(IN id_prestito bigint)
+    LANGUAGE plpgsql
+    AS $$
+    begin
+        set search_path to "biblioteca_ag";
+        if (current_date > (select p.fine_concessione
+             from prestito p
+             where p.id = id_prestito
+             )) then
+                raise exception 'impossibile prolungare il prestito perché già in ritardo';
+        end if;
+        update prestito set fine_concessione = fine_concessione + 30 where id = id_prestito;
+    end;
+    $$;
+
+
+ALTER PROCEDURE biblioteca_ag.prolunga_prestito(IN id_prestito bigint) OWNER TO andrea;
+
+--
 -- Name: rendi_disponibile_function(); Type: FUNCTION; Schema: biblioteca_ag; Owner: andrea
 --
 
@@ -175,15 +197,16 @@ CREATE PROCEDURE biblioteca_ag.richiedi_prestito_isbn(IN isbn numeric, IN cf cha
             limit 1);
             if found then
                 insert into prestito (copia_codice, libro_isbn, lettore_cf) values (copia_in_sede,
-                                                                                    libro_isbn,cf);
+                                                                                    isbn,cf);
                 return;
             end if;
             raise info 'libro non presente nella sede, verrà cercato altrove';
         end if;
-        insert into prestito (copia_codice, libro_isbn, lettore_cf) values ((select codice
+        copia_in_sede = (select codice
         from copia
         where libro_isbn = isbn and stato = 'disponibile'
-        limit 1), isbn, cf);
+        limit 1);
+        insert into prestito (copia_codice, libro_isbn, lettore_cf) values (copia_in_sede, isbn, cf);
     end
     $$;
 
@@ -210,7 +233,7 @@ CREATE FUNCTION biblioteca_ag.tetto_prestiti_funzione() RETURNS trigger
         if ((select count(*)
              from prestito
              where prestito.lettore_cf = new.lettore_cf
-             and prestito.restituzione is not null) >= tetto) then
+             and prestito.restituzione is null) >= tetto) then
             raise exception 'Prestito non concesso: numero massimo di prestiti raggiunto!';
         else
             return new;
@@ -294,7 +317,7 @@ CREATE TABLE biblioteca_ag.lettore (
     nome character varying(255) NOT NULL,
     cognome character varying(255) NOT NULL,
     volumi_in_ritardo smallint DEFAULT 0 NOT NULL,
-    categoria character varying(15) NOT NULL,
+    categoria character varying(15) DEFAULT 'base'::character varying NOT NULL,
     CONSTRAINT lettore_categoria_check CHECK (((categoria)::text = ANY ((ARRAY['base'::character varying, 'premium'::character varying])::text[]))),
     CONSTRAINT lettore_volumi_in_ritardo_check CHECK (((volumi_in_ritardo < 6) AND (volumi_in_ritardo >= 0)))
 );
@@ -357,7 +380,7 @@ CREATE VIEW biblioteca_ag.report_ritardi AS
     prestito.lettore_cf
    FROM (biblioteca_ag.copia
      JOIN biblioteca_ag.prestito ON ((copia.codice = prestito.copia_codice)))
-  WHERE ((CURRENT_DATE > prestito.restituzione) AND ((copia.stato)::text = 'non disponibile'::text))
+  WHERE ((CURRENT_DATE > prestito.fine_concessione) AND ((copia.stato)::text = 'non disponibile'::text))
   ORDER BY copia.sede_cod;
 
 
@@ -428,8 +451,7 @@ ALTER VIEW biblioteca_ag.statistiche_sedi OWNER TO andrea;
 CREATE TABLE biblioteca_ag.utente_bibliotecario (
     email text NOT NULL,
     password text NOT NULL,
-    CONSTRAINT utente_bibliotecario_email_check CHECK ((email ~ '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text)),
-    CONSTRAINT utente_bibliotecario_password_check CHECK ((password ~ '^.{8,}$'::text))
+    CONSTRAINT utente_bibliotecario_email_check CHECK ((email ~ '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text))
 );
 
 
@@ -443,8 +465,7 @@ CREATE TABLE biblioteca_ag.utente_lettore (
     email text NOT NULL,
     password text NOT NULL,
     cf_lettore character(16) NOT NULL,
-    CONSTRAINT utente_lettore_email_check CHECK ((email ~ '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text)),
-    CONSTRAINT utente_lettore_password_check CHECK ((password ~ '^.{8,}$'::text))
+    CONSTRAINT utente_lettore_email_check CHECK ((email ~ '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text))
 );
 
 
@@ -465,6 +486,7 @@ COPY biblioteca_ag.autore (id, nome, cognome, data_nascita, data_morte, biografi
 11	Antoine	de Saint-Exupéry	1900-06-29	1944-07-31	Antoine de Saint-Exupéry was a French writer and aviator, best remembered for his novella The Little Prince.
 12	J.R.R.	Tolkien	1892-01-03	1973-09-02	J.R.R. Tolkien was an English writer, poet, philologist, and academic, best known for The Hobbit and The Lord of the Rings.
 13	Khaled	Hosseini	1965-03-04	\N	Khaled Hosseini is an Afghan-American novelist and physician, best known for his novel The Kite Runner.
+16	Cesare	Pavese	1908-09-09	1950-08-27	Grande scrittore antifascista.
 \.
 
 
@@ -473,17 +495,13 @@ COPY biblioteca_ag.autore (id, nome, cognome, data_nascita, data_morte, biografi
 --
 
 COPY biblioteca_ag.copia (codice, libro_isbn, stato, sede_cod) FROM stdin;
-4	9780062316097	disponibile	3
-5	9780439139601	disponibile	6
-7	9780439139601	disponibile	11
-8	9780439139601	disponibile	7
-9	9780439139601	disponibile	2
+14	9780544003415	disponibile	11
 10	9780062316097	disponibile	4
-11	9780062316097	disponibile	5
 12	9780307476708	disponibile	8
 13	9780307476708	disponibile	9
-14	9780544003415	disponibile	11
-6	9780439139601	disponibile	3
+4	9780062316097	disponibile	3
+16	9780307476708	disponibile	11
+18	9788806221300	disponibile	7
 \.
 
 
@@ -493,15 +511,17 @@ COPY biblioteca_ag.copia (codice, libro_isbn, stato, sede_cod) FROM stdin;
 
 COPY biblioteca_ag.lettore (cf, nome, cognome, volumi_in_ritardo, categoria) FROM stdin;
 RSSMRA85M01H501Z	Marco	Rossi	0	base
-VRDLGI75C05H501W	Luigi	Verdi	0	premium
-BNCLRA90E15F205Y	Laura	Bianchi	0	base
 FBRGFR83P12C354D	Giorgio	Fabbri	0	premium
-PRSMNL70D10G273J	Manuela	Piersanti	0	base
 SLVRGL85H05H501L	Giulia	Salvadori	0	premium
 CNTFNC95A01E512K	Francesco	Conti	0	base
 LBRMRZ60S10C351N	Marzia	Liberati	0	premium
 NCCFNC70M01H501F	Nicola	Cenci	0	base
 RCCLST92C15F205C	Alessandra	Ricci	0	premium
+GRRNDR03C08F205Y	Andrea	Gerardi	0	base
+VRDLGI75C05H501W	Luigi	Verdi	0	base
+PRSMNL70D10G273J	Manuela	Piersanti	0	base
+NNNGNN54H54I726T	Gianna	Nannini	0	base
+BNCLRA90E15F205Y	Laura	Bianchi	0	base
 \.
 
 
@@ -514,12 +534,12 @@ COPY biblioteca_ag.libro (isbn, titolo, trama, casa_ed) FROM stdin;
 9780743273565	The Great Gatsby	A critique of the American Dream, narrated by Nick Carraway about the mysterious Jay Gatsby.	Scribner
 9780316769488	The Catcher in the Rye	A story about teenage alienation and loss of innocence, narrated by the disillusioned Holden Caulfield.	Little, Brown and Company
 9780140283334	1984	A dystopian novel depicting a totalitarian regime that uses surveillance, censorship, and control to manipulate society.	Penguin Books
-9780439139601	Harry Potter and the Prisoner of Azkaban	The third book in the Harry Potter series, where Harry learns about his connection to Sirius Black.	Scholastic Inc.
 9780061120084	The Alchemist	A philosophical story about a shepherd named Santiago who dreams of finding treasure in the pyramids of Egypt.	HarperOne
 9780307476708	The Road	A post-apocalyptic tale of a father and son journeying through a devastated landscape.	Vintage International
 9780385490818	The Little Prince	A philosophical novella exploring themes of love, friendship, and the meaning of life through the eyes of a child.	Harcourt, Brace & World
 9780544003415	The Hobbit	The prelude to The Lord of the Rings trilogy, following Bilbo Baggins’ adventure to reclaim a lost Dwarf Kingdom.	Houghton Mifflin Harcourt
 9780307277671	The Kite Runner	A story of friendship and redemption set against the backdrop of a changing Afghanistan.	Riverhead Books
+9788806221300	La casa in collina	La storia di una solitudine individuale di fronte all'impegno civile e storico; la contraddizione da risolvere tra vita in campagna e vita in città, nel caos della guerra; il superamento dell'egoismo attraverso la scoperta che ogni caduto somiglia a chi resta e gliene chiede ragione. "Ora che ho visto cos'è la guerra civile, so che tutti, se un giorno finisse, dovrebbero chiedersi: "E dei caduti che facciamo? Perché sono morti?" Io non saprei cosa rispondere. Non adesso almeno. Né mi pare che gli altri lo sappiano. Forse lo sanno unicamente i morti, e soltanto per loro la guerra è finita davvero". La grande intuizione delle ultime pagine de "La casa in collina" sarà ripresa e portata alle estreme conseguenze artistiche e morali nell'altro grande libro di Cesare Pavese, "La luna e i falò".	Einaudi
 \.
 
 
@@ -528,7 +548,16 @@ COPY biblioteca_ag.libro (isbn, titolo, trama, casa_ed) FROM stdin;
 --
 
 COPY biblioteca_ag.prestito (id, data_inizio, copia_codice, libro_isbn, lettore_cf, fine_concessione, restituzione) FROM stdin;
-8	2024-09-08	6	9780439139601	VRDLGI75C05H501W	2024-10-08	2024-09-08
+10	2024-09-11	10	9780062316097	BNCLRA90E15F205Y	2024-10-11	2024-09-11
+11	2024-09-11	4	9780062316097	BNCLRA90E15F205Y	2024-10-11	2024-09-11
+27	2024-09-11	10	9780062316097	BNCLRA90E15F205Y	2024-10-11	2024-09-11
+28	2024-09-11	4	9780062316097	BNCLRA90E15F205Y	2024-10-11	2024-09-11
+33	2024-09-11	10	9780062316097	BNCLRA90E15F205Y	2024-11-10	2024-09-13
+34	2024-09-15	12	9780307476708	BNCLRA90E15F205Y	2024-10-15	2024-09-15
+35	2024-09-15	13	9780307476708	BNCLRA90E15F205Y	2024-10-15	2024-09-15
+37	2024-09-18	4	9780062316097	BNCLRA90E15F205Y	2024-10-18	2024-11-11
+38	2024-09-16	4	9780062316097	BNCLRA90E15F205Y	2024-09-17	2024-09-18
+39	2024-09-18	16	9780307476708	BNCLRA90E15F205Y	2024-10-18	2024-09-18
 \.
 
 
@@ -541,12 +570,12 @@ COPY biblioteca_ag.scrive (autore_id, libro_isbn) FROM stdin;
 5	9780743273565
 6	9780316769488
 7	9780140283334
-8	9780439139601
 9	9780061120084
 10	9780307476708
 11	9780385490818
 12	9780544003415
 13	9780307277671
+16	9788806221300
 \.
 
 
@@ -558,7 +587,6 @@ COPY biblioteca_ag.sede (cod, "città", indirizzo) FROM stdin;
 2	Roma	Via del Corso, 123
 3	Milano	Corso Buenos Aires, 45
 4	Torino	Via Roma, 10
-5	Napoli	Via Toledo, 67
 6	Firenze	Piazza della Repubblica, 1
 7	Bologna	Via Indipendenza, 32
 8	Venezia	Calle Larga, 78
@@ -573,6 +601,7 @@ COPY biblioteca_ag.sede (cod, "città", indirizzo) FROM stdin;
 --
 
 COPY biblioteca_ag.utente_bibliotecario (email, password) FROM stdin;
+biblio@tecario.it	$2y$10$qDJSQzR7A5MJM5Jfvt326eZg0yz2qx1lv/TXnxpqDXm2Fubh8BUYW
 \.
 
 
@@ -581,6 +610,8 @@ COPY biblioteca_ag.utente_bibliotecario (email, password) FROM stdin;
 --
 
 COPY biblioteca_ag.utente_lettore (email, password, cf_lettore) FROM stdin;
+laura@bianchi.it	$2y$10$Wkf7Q3JjCOx.9W8.FGUSOeLPv59He50MvuMeLDiZkYdWHgkxC1eki	BNCLRA90E15F205Y
+giannanannini@gmail.com	$2y$10$KcNZ59vpVf6XJFUj..AoF.zUPRfOeKvMMs9JwZglGM7Q5.2/.IwSi	NNNGNN54H54I726T
 \.
 
 
@@ -588,28 +619,28 @@ COPY biblioteca_ag.utente_lettore (email, password, cf_lettore) FROM stdin;
 -- Name: autore_id_seq; Type: SEQUENCE SET; Schema: biblioteca_ag; Owner: andrea
 --
 
-SELECT pg_catalog.setval('biblioteca_ag.autore_id_seq', 13, true);
+SELECT pg_catalog.setval('biblioteca_ag.autore_id_seq', 16, true);
 
 
 --
 -- Name: copia_codice_seq; Type: SEQUENCE SET; Schema: biblioteca_ag; Owner: andrea
 --
 
-SELECT pg_catalog.setval('biblioteca_ag.copia_codice_seq', 14, true);
+SELECT pg_catalog.setval('biblioteca_ag.copia_codice_seq', 18, true);
 
 
 --
 -- Name: prestito_id_seq; Type: SEQUENCE SET; Schema: biblioteca_ag; Owner: andrea
 --
 
-SELECT pg_catalog.setval('biblioteca_ag.prestito_id_seq', 8, true);
+SELECT pg_catalog.setval('biblioteca_ag.prestito_id_seq', 39, true);
 
 
 --
 -- Name: sede_cod_seq; Type: SEQUENCE SET; Schema: biblioteca_ag; Owner: andrea
 --
 
-SELECT pg_catalog.setval('biblioteca_ag.sede_cod_seq', 11, true);
+SELECT pg_catalog.setval('biblioteca_ag.sede_cod_seq', 14, true);
 
 
 --
@@ -709,7 +740,7 @@ CREATE TRIGGER blocco_prestiti BEFORE INSERT ON biblioteca_ag.prestito FOR EACH 
 -- Name: prestito check_proroga; Type: TRIGGER; Schema: biblioteca_ag; Owner: andrea
 --
 
-CREATE TRIGGER check_proroga BEFORE UPDATE OF restituzione ON biblioteca_ag.prestito FOR EACH ROW EXECUTE FUNCTION biblioteca_ag.check_proroga_funzione();
+CREATE TRIGGER check_proroga BEFORE UPDATE OF fine_concessione ON biblioteca_ag.prestito FOR EACH ROW EXECUTE FUNCTION biblioteca_ag.check_proroga_funzione();
 
 
 --

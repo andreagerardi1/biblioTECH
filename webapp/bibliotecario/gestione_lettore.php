@@ -27,11 +27,12 @@ $query_prestiti = "
     WHERE p.lettore_cf = $1 AND p.restituzione IS NULL
 ";
 $result_prestiti = pg_prepare($db, "prestiti_lettore",$query_prestiti);
+$result_prestiti = pg_execute($db, "prestiti_lettore", array($cf));
 
 if (isset($_POST['consegna_prestito'])) {
     $id_prestito = $_POST['prestito_id'];
     $query_consegna = "UPDATE biblioteca_ag.prestito SET restituzione = CURRENT_DATE WHERE id = $1";
-    $result_consegna = pg_prepare($db, "cosegna_prestito",$query_consegna);
+    $result_consegna = pg_prepare($db, "consegna_prestito",$query_consegna);
     $result_consegna = pg_execute($db, "consegna_prestito", array($id_prestito));
     
     if ($result_consegna) {
