@@ -1,4 +1,5 @@
 # Manuale utente
+Andrea Gerardi 24456A
 ## Prerequisiti
 Lista dei software necessari per eseguiure l'applicazione
 - `PostgreSQL`

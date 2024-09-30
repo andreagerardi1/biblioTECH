@@ -619,7 +619,7 @@ giannanannini@gmail.com	$2y$10$KcNZ59vpVf6XJFUj..AoF.zUPRfOeKvMMs9JwZglGM7Q5.2/.
 -- Name: autore_id_seq; Type: SEQUENCE SET; Schema: biblioteca_ag; Owner: andrea
 --
 
-SELECT pg_catalog.setval('biblioteca_ag.autore_id_seq', 16, true);
+SELECT pg_catalog.setval('biblioteca_ag.autore_id_seq', 17, true);
 
 
 --
@@ -826,6 +826,13 @@ ALTER TABLE ONLY biblioteca_ag.scrive
 
 ALTER TABLE ONLY biblioteca_ag.utente_lettore
     ADD CONSTRAINT utente_lettore_cf_lettore_fkey FOREIGN KEY (cf_lettore) REFERENCES biblioteca_ag.lettore(cf);
+
+
+--
+-- Name: SCHEMA biblioteca_ag; Type: ACL; Schema: -; Owner: pg_database_owner
+--
+
+GRANT ALL ON SCHEMA biblioteca_ag TO postgres WITH GRANT OPTION;
 
 
 --
